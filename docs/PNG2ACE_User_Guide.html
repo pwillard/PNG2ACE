@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>PNG2ACE User Guide</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">PNG2ACE User Guide</h1>
+</header>
+<h1 id="png2ace-user-guide">PNG2ACE User Guide</h1>
+<p>Version: 0.1.0</p>
+<p>PNG2ACE converts PNG, TGA, and TARGA image files into Microsoft Train
+Simulator / Open Rails ACE texture files. It includes both a
+command-line program for batch work and a graphical interface for normal
+desktop use.</p>
+<h2 id="programs-included">Programs included</h2>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>Program</th>
+<th>Use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>png2ace.exe</code></td>
+<td>Command-line converter for one file or a folder batch.</td>
+</tr>
+<tr>
+<td><code>png2ace-gui.exe</code></td>
+<td>Graphical converter with file and folder browse buttons.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="supported-input-files">Supported input files</h2>
+<p>PNG2ACE accepts these input image types:</p>
+<ul>
+<li><code>.png</code></li>
+<li><code>.tga</code></li>
+<li><code>.targa</code></li>
+</ul>
+<p>Folder batch conversion is non-recursive. It converts files in the
+selected folder only, not subfolders.</p>
+<h2 id="ace-output-formats">ACE output formats</h2>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Format</th>
+<th>Best use</th>
+<th>Alpha handling</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Structured RGB/RGBA</td>
+<td>Safest default for MSTS/Open Rails compatibility.</td>
+<td>Writes RGB unless the source has meaningful transparency.</td>
+</tr>
+<tr>
+<td>DXT1 / BC1</td>
+<td>Compressed textures without alpha.</td>
+<td>Best compressed choice for opaque textures.</td>
+</tr>
+<tr>
+<td>DXT3 / BC2 (for alpha images)</td>
+<td>Compressed textures with explicit alpha.</td>
+<td>Requires a source image with an alpha channel.</td>
+</tr>
+<tr>
+<td>DXT5 / BC3 (for alpha images)</td>
+<td>Compressed textures with interpolated alpha.</td>
+<td>Requires a source image with an alpha channel.</td>
+</tr>
+<tr>
+<td>Auto DXT</td>
+<td>Automatic compressed output.</td>
+<td>Uses DXT1 for opaque images and DXT5 for meaningful
+transparency.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="alpha-channel-rules">Alpha-channel rules</h3>
+<p>PNG2ACE checks whether the source image actually contains an alpha
+channel before deciding how to write the ACE file.</p>
+<ul>
+<li>Images with no alpha channel are treated as opaque.</li>
+<li>Images with a fully opaque alpha channel are treated as opaque for
+Structured and DXT1 output.</li>
+<li>Tiny near-opaque alpha noise is treated as opaque. This avoids
+striped or interlaced-looking textures in older ACE readers.</li>
+<li>Meaningful transparency produces an alpha-capable ACE format when
+the chosen output format supports alpha.</li>
+<li>If DXT3 or DXT5 is selected for an image with no alpha channel,
+PNG2ACE skips that file and prints/logs a message. No ACE file is
+written for that skipped image.</li>
+</ul>
+<h2 id="using-the-graphical-interface">Using the graphical
+interface</h2>
+<p>Start the GUI by running:</p>
+<p><code>png2ace-gui.exe</code></p>
+<p>The main window contains:</p>
+<ul>
+<li>Input mode: choose <code>Single image</code> or
+<code>Folder batch</code>.</li>
+<li>Source: the PNG/TGA image or folder to convert.</li>
+<li>Output: the ACE file or output folder. This can be left blank for
+the default output location.</li>
+<li>Generate mipmaps: optional mipmap-chain generation.</li>
+<li>ACE format: output format selection.</li>
+<li>Convert: starts conversion.</li>
+<li>Clear log: clears the status log.</li>
+<li>Status: progress, success, skip, and error messages.</li>
+</ul>
+<h3 id="convert-one-image-in-the-gui">Convert one image in the GUI</h3>
+<ol type="1">
+<li>Select <code>Single image</code>.</li>
+<li>Click the Source <code>Browse...</code> button.</li>
+<li>Pick a <code>.png</code>, <code>.tga</code>, or <code>.targa</code>
+file.</li>
+<li>Leave Output blank to create an ACE file beside the source image, or
+click Output <code>Browse...</code> to choose a different ACE
+filename.</li>
+<li>Choose the ACE format.</li>
+<li>Optional: enable <code>Generate mipmaps</code> if the image is
+square and power-of-two.</li>
+<li>Click <code>Convert</code>.</li>
+<li>Read the Status log for the result.</li>
+</ol>
+<h3 id="convert-a-folder-in-the-gui">Convert a folder in the GUI</h3>
+<ol type="1">
+<li>Select <code>Folder batch</code>.</li>
+<li>Click the Source <code>Browse...</code> button and choose a
+folder.</li>
+<li>Leave Output blank to write ACE files into the same folder, or
+choose a different output folder.</li>
+<li>Choose the ACE format.</li>
+<li>Optional: enable <code>Generate mipmaps</code> if every image is
+square and power-of-two.</li>
+<li>Click <code>Convert</code>.</li>
+<li>The Status log shows each file as it is processed.</li>
+</ol>
+<h3 id="gui-format-choices">GUI format choices</h3>
+<p>Use these practical defaults:</p>
+<ul>
+<li>Use <code>Structured RGB/RGBA</code> when compatibility matters
+most.</li>
+<li>Use <code>DXT1 / BC1</code> for opaque compressed textures.</li>
+<li>Use <code>DXT3 / BC2 (for alpha images)</code> or
+<code>DXT5 / BC3 (for alpha images)</code> only when the source image
+has an alpha channel.</li>
+<li>Use <code>Auto DXT</code> when you want compressed output and want
+PNG2ACE to choose DXT1 or DXT5 automatically.</li>
+</ul>
+<h2 id="using-the-command-line-program">Using the command-line
+program</h2>
+<p>Open a Command Prompt, PowerShell window, or terminal in the folder
+containing <code>png2ace.exe</code>.</p>
+<p>Basic command form:</p>
+<p><code>png2ace.exe [OPTIONS] [INPUT] [OUTPUT]</code></p>
+<h3 id="command-line-arguments">Command-line arguments</h3>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>INPUT</code></td>
+<td>Source PNG/TGA image or folder. If omitted, the current folder is
+used.</td>
+</tr>
+<tr>
+<td><code>OUTPUT</code></td>
+<td>Destination ACE file for one image, or destination folder for folder
+conversion.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="command-line-options">Command-line options</h3>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>Option</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--format structured</code></td>
+<td>Write uncompressed Structured ACE output. This is the default.</td>
+</tr>
+<tr>
+<td><code>--format dxt1</code></td>
+<td>Write DXT1 / BC1 compressed ACE output.</td>
+</tr>
+<tr>
+<td><code>--format dxt3</code></td>
+<td>Write DXT3 / BC2 compressed ACE output for alpha images. Skips
+no-alpha sources.</td>
+</tr>
+<tr>
+<td><code>--format dxt5</code></td>
+<td>Write DXT5 / BC3 compressed ACE output for alpha images. Skips
+no-alpha sources.</td>
+</tr>
+<tr>
+<td><code>--format auto-dxt</code></td>
+<td>Automatically choose DXT1 or DXT5.</td>
+</tr>
+<tr>
+<td><code>--mipmaps</code></td>
+<td>Generate a complete mipmap chain. Requires square power-of-two
+images.</td>
+</tr>
+<tr>
+<td><code>-h</code>, <code>--help</code></td>
+<td>Show command help.</td>
+</tr>
+<tr>
+<td><code>-V</code>, <code>--version</code></td>
+<td>Show the program version.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="command-line-examples">Command-line examples</h3>
+<p>Convert all PNG/TGA files in the current folder using Structured ACE
+output:</p>
+<p><code>png2ace.exe</code></p>
+<p>Convert all PNG/TGA files in a folder:</p>
+<p><code>png2ace.exe C:\Textures</code></p>
+<p>Convert all PNG/TGA files in one folder and write ACE files to
+another folder:</p>
+<p><code>png2ace.exe C:\Textures C:\Textures\ACE</code></p>
+<p>Convert one image beside the source file:</p>
+<p><code>png2ace.exe 90tex.png</code></p>
+<p>Convert one image to a specific ACE file:</p>
+<p><code>png2ace.exe 90tex.png 90tex.ace</code></p>
+<p>Convert one TGA image:</p>
+<p><code>png2ace.exe texture.tga texture.ace</code></p>
+<p>Convert one image to DXT1:</p>
+<p><code>png2ace.exe texture.png texture.ace --format dxt1</code></p>
+<p>Convert a folder to Auto DXT:</p>
+<p><code>png2ace.exe C:\Textures C:\Textures\ACE --format auto-dxt</code></p>
+<p>Convert one image with mipmaps:</p>
+<p><code>png2ace.exe texture.png texture.ace --mipmaps</code></p>
+<p>Convert one image to DXT1 with mipmaps:</p>
+<p><code>png2ace.exe texture.png texture.ace --format dxt1 --mipmaps</code></p>
+<h3 id="folder-conversion-behavior">Folder conversion behavior</h3>
+<p>When converting a folder:</p>
+<ul>
+<li>PNG2ACE scans only the selected folder.</li>
+<li>Subfolders are not scanned.</li>
+<li>File extensions are matched case-insensitively.</li>
+<li>Output files use the same base name and the <code>.ace</code>
+extension.</li>
+<li>If two inputs would produce the same ACE filename, conversion is
+rejected before writing output. Example: <code>texture.png</code> and
+<code>texture.tga</code> would both produce
+<code>texture.ace</code>.</li>
+<li>Progress is printed as each file starts and finishes.</li>
+</ul>
+<h2 id="mipmaps">Mipmaps</h2>
+<p>Mipmaps are smaller versions of the texture stored in the ACE file.
+They can improve rendering at a distance.</p>
+<p>Mipmaps require:</p>
+<ul>
+<li>square images</li>
+<li>power-of-two dimensions, such as 256x256, 512x512, 1024x1024, or
+2048x2048</li>
+</ul>
+<p>If <code>--mipmaps</code> is used on an invalid image size,
+conversion fails for that image.</p>
+<h2 id="recommended-workflows">Recommended workflows</h2>
+<h3 id="safest-general-purpose-workflow">Safest general-purpose
+workflow</h3>
+<p>Use Structured output first:</p>
+<p><code>png2ace.exe texture.png texture.ace --format structured</code></p>
+<p>This is the safest choice when checking a new texture or when
+compatibility is more important than file size.</p>
+<h3 id="compressed-opaque-textures">Compressed opaque textures</h3>
+<p>Use DXT1:</p>
+<p><code>png2ace.exe texture.png texture.ace --format dxt1</code></p>
+<p>DXT1 is usually the right compressed choice for normal opaque
+textures.</p>
+<h3 id="compressed-alpha-textures">Compressed alpha textures</h3>
+<p>Use DXT5 or Auto DXT for textures with meaningful transparency:</p>
+<p><code>png2ace.exe window.png window.ace --format dxt5</code></p>
+<p>or:</p>
+<p><code>png2ace.exe window.png window.ace --format auto-dxt</code></p>
+<p>If the source file has no alpha channel, DXT3 and DXT5 are skipped
+because they are alpha-image formats.</p>
+<h2 id="status-and-messages">Status and messages</h2>
+<p>Typical successful single-file output:</p>
+<p><code>converting texture.png -&gt; texture.ace ... done (1024x1024, 3 channel structured, no mipmaps)</code></p>
+<p>Typical skip message for DXT5 on a no-alpha image:</p>
+<p><code>converting texture.png -&gt; texture.ace ... skipped (skipped: texture.png has no alpha channel; DXT5 is for alpha images)</code></p>
+<p>Typical folder output:</p>
+<p><code>found 3 PNG/TGA file(s) in C:\Textures</code></p>
+<p><code>[1/3] converting C:\Textures\a.png -&gt; C:\Textures\a.ace ... done (512x512, 3 channel DXT1, no mipmaps)</code></p>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<h3 id="the-output-ace-looks-striped-or-interlaced">The output ACE looks
+striped or interlaced</h3>
+<p>Use the current PNG2ACE build and try Structured or DXT1 output
+first. Some legacy ACE readers misread unnecessary alpha data. PNG2ACE
+avoids writing alpha planes for fully opaque alpha channels and tiny
+near-opaque alpha noise.</p>
+<h3 id="dxt3-or-dxt5-says-the-image-was-skipped">DXT3 or DXT5 says the
+image was skipped</h3>
+<p>The input image does not contain an alpha channel. Use DXT1 or
+Structured output, or save the source image with an alpha channel if
+alpha output is really needed.</p>
+<h3 id="mipmap-conversion-fails">Mipmap conversion fails</h3>
+<p>Check that the image is square and power-of-two. Examples that work:
+256x256, 512x512, 1024x1024, 2048x2048.</p>
+<h3 id="folder-conversion-rejects-duplicate-output-names">Folder
+conversion rejects duplicate output names</h3>
+<p>Check for files with the same base name but different extensions,
+such as:</p>
+<ul>
+<li><code>texture.png</code></li>
+<li><code>texture.tga</code></li>
+</ul>
+<p>Both would write <code>texture.ace</code>, so PNG2ACE refuses the
+batch. Rename one source file or convert them to different output
+folders.</p>
+<h3 id="the-gui-executable-cannot-be-replaced-during-an-update">The GUI
+executable cannot be replaced during an update</h3>
+<p>Close <code>png2ace-gui.exe</code> before copying a new build over
+it. Windows locks running executables.</p>
+<h2 id="quick-reference">Quick reference</h2>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Task</th>
+<th>GUI</th>
+<th>Command line</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Convert one image</td>
+<td>Single image, Browse source, Convert</td>
+<td><code>png2ace.exe image.png</code></td>
+</tr>
+<tr>
+<td>Convert current folder</td>
+<td>Folder batch, Source <code>.</code> or chosen folder, Convert</td>
+<td><code>png2ace.exe</code></td>
+</tr>
+<tr>
+<td>Convert folder to another folder</td>
+<td>Folder batch, choose Source and Output folders</td>
+<td><code>png2ace.exe input-folder output-folder</code></td>
+</tr>
+<tr>
+<td>Use DXT1</td>
+<td>Select <code>DXT1 / BC1</code></td>
+<td><code>--format dxt1</code></td>
+</tr>
+<tr>
+<td>Use DXT3</td>
+<td>Select <code>DXT3 / BC2 (for alpha images)</code></td>
+<td><code>--format dxt3</code></td>
+</tr>
+<tr>
+<td>Use DXT5</td>
+<td>Select <code>DXT5 / BC3 (for alpha images)</code></td>
+<td><code>--format dxt5</code></td>
+</tr>
+<tr>
+<td>Let PNG2ACE choose DXT</td>
+<td>Select <code>Auto DXT</code></td>
+<td><code>--format auto-dxt</code></td>
+</tr>
+<tr>
+<td>Generate mipmaps</td>
+<td>Check <code>Generate mipmaps</code></td>
+<td><code>--mipmaps</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="notes-for-open-rails-and-msts-users">Notes for Open Rails and
+MSTS users</h2>
+<p>PNG2ACE is designed for ACE textures used by Microsoft Train
+Simulator and Open Rails. Structured output is the most conservative
+choice. DXT output is smaller and may be useful for distribution or
+large texture sets, but test important textures in your target simulator
+or viewer before replacing working originals.</p>
+</body>
+</html>

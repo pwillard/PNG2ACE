@@ -1,0 +1,24 @@
+[package]
+name = "png2ace"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+description = "Convert PNG textures to Microsoft Train Simulator ACE files"
+
+[dependencies]
+clap = { version = "4.5", features = ["derive"] }
+eframe = "0.36.2"
+image = "0.25"
+rfd = "0.17.2"
+texpresso = "2.0.2"
+thiserror = "2"
+
+[dev-dependencies]
+
+[[bin]]
+name = "png2ace"
+path = "src/main.rs"
+
+[[bin]]
+name = "png2ace-gui"
+path = "src/bin/gui.rs"
