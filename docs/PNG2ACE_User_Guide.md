@@ -1,6 +1,6 @@
 # PNG2ACE User Guide
 
-Version: 0.2.0
+Version: 1.2.0
 
 PNG2ACE converts PNG, TGA, and TARGA image files into Microsoft Train Simulator / Open Rails ACE texture files. It includes both a command-line program for batch work and a graphical interface for normal desktop use.
 
@@ -231,7 +231,7 @@ Typical folder output:
 
 ### The output ACE looks striped or interlaced
 
-Use PNG2ACE 0.2.0 or later. Earlier versions wrote the ACE row table and alpha channels in a slightly different layout from Kuju's MakeACE, which some older ACE readers can show as stripes. 0.2.0 writes the same layout as MakeACE. PNG2ACE also avoids writing alpha planes for fully opaque alpha channels and tiny near-opaque alpha noise.
+Use PNG2ACE 1.2 or later. Earlier versions wrote the ACE row table and alpha channels in a slightly different layout from Kuju's MakeACE, which some older ACE readers can show as stripes. 1.2 writes the same layout as MakeACE. PNG2ACE also avoids writing alpha planes for fully opaque alpha channels and tiny near-opaque alpha noise.
 
 If you still see stripes, reconvert the texture from the original PNG/TGA with the current build; ACE files made by older PNG2ACE versions are not fixed automatically.
 
@@ -275,7 +275,7 @@ PNG2ACE is designed for ACE textures used by Microsoft Train Simulator and Open 
 
 ### Compatibility with MakeACE
 
-PNG2ACE 0.2.0 writes ACE files in the same layout as Kuju's original MakeACE 1.04: the same header values, channel list, row table and full-size pixel data. The differences you can expect are:
+PNG2ACE 1.2 writes ACE files in the same layout as Kuju's original MakeACE 1.04: the same header values, channel list, row table and full-size pixel data. The differences you can expect are:
 
 - Mipmaps: MakeACE copies one pixel from each 2x2 block; PNG2ACE averages the block, so its distant mipmaps look smoother.
 - Alpha detection: MakeACE treats any alpha below 255 as transparency; PNG2ACE ignores tiny near-opaque alpha noise.

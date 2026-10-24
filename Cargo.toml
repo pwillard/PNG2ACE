@@ -1,6 +1,6 @@
 [package]
 name = "png2ace"
-version = "0.2.0"
+version = "1.2.0"
 edition = "2024"
 license = "MIT"
 description = "Convert PNG textures to Microsoft Train Simulator ACE files"

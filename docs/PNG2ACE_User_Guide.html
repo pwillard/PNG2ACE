@@ -173,7 +173,7 @@
 <h1 class="title">PNG2ACE User Guide</h1>
 </header>
 <h1 id="png2ace-user-guide">PNG2ACE User Guide</h1>
-<p>Version: 0.2.0</p>
+<p>Version: 1.2.0</p>
 <p>PNG2ACE converts PNG, TGA, and TARGA image files into Microsoft Train
 Simulator / Open Rails ACE texture files. It includes both a
 command-line program for batch work and a graphical interface for normal
@@ -490,9 +490,9 @@ because they are alpha-image formats.</p>
 <h2 id="troubleshooting">Troubleshooting</h2>
 <h3 id="the-output-ace-looks-striped-or-interlaced">The output ACE looks
 striped or interlaced</h3>
-<p>Use PNG2ACE 0.2.0 or later. Earlier versions wrote the ACE row table
+<p>Use PNG2ACE 1.2 or later. Earlier versions wrote the ACE row table
 and alpha channels in a slightly different layout from Kuju’s MakeACE,
-which some older ACE readers can show as stripes. 0.2.0 writes the same
+which some older ACE readers can show as stripes. 1.2 writes the same
 layout as MakeACE. PNG2ACE also avoids writing alpha planes for fully
 opaque alpha channels and tiny near-opaque alpha noise.</p>
 <p>If you still see stripes, reconvert the texture from the original
@@ -586,7 +586,7 @@ choice. DXT output is smaller and may be useful for distribution or
 large texture sets, but test important textures in your target simulator
 or viewer before replacing working originals.</p>
 <h3 id="compatibility-with-makeace">Compatibility with MakeACE</h3>
-<p>PNG2ACE 0.2.0 writes ACE files in the same layout as Kuju’s original
+<p>PNG2ACE 1.2 writes ACE files in the same layout as Kuju’s original
 MakeACE 1.04: the same header values, channel list, row table and
 full-size pixel data. The differences you can expect are:</p>
 <ul>
