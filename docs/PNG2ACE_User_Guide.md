@@ -1,6 +1,6 @@
 # PNG2ACE User Guide
 
-Version: 0.1.0
+Version: 0.2.0
 
 PNG2ACE converts PNG, TGA, and TARGA image files into Microsoft Train Simulator / Open Rails ACE texture files. It includes both a command-line program for batch work and a graphical interface for normal desktop use.
 
@@ -25,8 +25,8 @@ Folder batch conversion is non-recursive. It converts files in the selected fold
 
 | Format | Best use | Alpha handling |
 | --- | --- | --- |
-| Structured RGB/RGBA | Safest default for MSTS/Open Rails compatibility. | Writes RGB unless the source has meaningful transparency. |
-| DXT1 / BC1 | Compressed textures without alpha. | Best compressed choice for opaque textures. |
+| Structured RGB/RGBA | Safest default for MSTS/Open Rails compatibility. | Writes RGB unless the source has meaningful transparency, then RGB + 1-bit mask + 8-bit alpha (the MakeACE layout). |
+| DXT1 / BC1 | Compressed textures without alpha, or with simple cut-out transparency. | Best compressed choice for opaque textures. Transparent images get a 1-bit mask, like MakeACE `-dxt -trans`. |
 | DXT3 / BC2 (for alpha images) | Compressed textures with explicit alpha. | Requires a source image with an alpha channel. |
 | DXT5 / BC3 (for alpha images) | Compressed textures with interpolated alpha. | Requires a source image with an alpha channel. |
 | Auto DXT | Automatic compressed output. | Uses DXT1 for opaque images and DXT5 for meaningful transparency. |
@@ -39,6 +39,7 @@ PNG2ACE checks whether the source image actually contains an alpha channel befor
 - Images with a fully opaque alpha channel are treated as opaque for Structured and DXT1 output.
 - Tiny near-opaque alpha noise is treated as opaque. This avoids striped or interlaced-looking textures in older ACE readers.
 - Meaningful transparency produces an alpha-capable ACE format when the chosen output format supports alpha.
+- Structured alpha output stores red, green, blue, a 1-bit mask and 8-bit alpha, exactly like Kuju's MakeACE. A mask pixel is solid when its alpha is above 32.
 - If DXT3 or DXT5 is selected for an image with no alpha channel, PNG2ACE skips that file and prints/logs a message. No ACE file is written for that skipped image.
 
 ## Using the graphical interface
@@ -230,7 +231,9 @@ Typical folder output:
 
 ### The output ACE looks striped or interlaced
 
-Use the current PNG2ACE build and try Structured or DXT1 output first. Some legacy ACE readers misread unnecessary alpha data. PNG2ACE avoids writing alpha planes for fully opaque alpha channels and tiny near-opaque alpha noise.
+Use PNG2ACE 0.2.0 or later. Earlier versions wrote the ACE row table and alpha channels in a slightly different layout from Kuju's MakeACE, which some older ACE readers can show as stripes. 0.2.0 writes the same layout as MakeACE. PNG2ACE also avoids writing alpha planes for fully opaque alpha channels and tiny near-opaque alpha noise.
+
+If you still see stripes, reconvert the texture from the original PNG/TGA with the current build; ACE files made by older PNG2ACE versions are not fixed automatically.
 
 ### DXT3 or DXT5 says the image was skipped
 
@@ -269,3 +272,11 @@ Close `png2ace-gui.exe` before copying a new build over it. Windows locks runnin
 ## Notes for Open Rails and MSTS users
 
 PNG2ACE is designed for ACE textures used by Microsoft Train Simulator and Open Rails. Structured output is the most conservative choice. DXT output is smaller and may be useful for distribution or large texture sets, but test important textures in your target simulator or viewer before replacing working originals.
+
+### Compatibility with MakeACE
+
+PNG2ACE 0.2.0 writes ACE files in the same layout as Kuju's original MakeACE 1.04: the same header values, channel list, row table and full-size pixel data. The differences you can expect are:
+
+- Mipmaps: MakeACE copies one pixel from each 2x2 block; PNG2ACE averages the block, so its distant mipmaps look smoother.
+- Alpha detection: MakeACE treats any alpha below 255 as transparency; PNG2ACE ignores tiny near-opaque alpha noise.
+- PNG2ACE does not write zlib-compressed (`SIMISA@F`) ACE files.

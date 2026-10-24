@@ -173,7 +173,7 @@
 <h1 class="title">PNG2ACE User Guide</h1>
 </header>
 <h1 id="png2ace-user-guide">PNG2ACE User Guide</h1>
-<p>Version: 0.1.0</p>
+<p>Version: 0.2.0</p>
 <p>PNG2ACE converts PNG, TGA, and TARGA image files into Microsoft Train
 Simulator / Open Rails ACE texture files. It includes both a
 command-line program for batch work and a graphical interface for normal
@@ -228,12 +228,15 @@ selected folder only, not subfolders.</p>
 <tr>
 <td>Structured RGB/RGBA</td>
 <td>Safest default for MSTS/Open Rails compatibility.</td>
-<td>Writes RGB unless the source has meaningful transparency.</td>
+<td>Writes RGB unless the source has meaningful transparency, then RGB +
+1-bit mask + 8-bit alpha (the MakeACE layout).</td>
 </tr>
 <tr>
 <td>DXT1 / BC1</td>
-<td>Compressed textures without alpha.</td>
-<td>Best compressed choice for opaque textures.</td>
+<td>Compressed textures without alpha, or with simple cut-out
+transparency.</td>
+<td>Best compressed choice for opaque textures. Transparent images get a
+1-bit mask, like MakeACE <code>-dxt -trans</code>.</td>
 </tr>
 <tr>
 <td>DXT3 / BC2 (for alpha images)</td>
@@ -264,6 +267,9 @@ Structured and DXT1 output.</li>
 striped or interlaced-looking textures in older ACE readers.</li>
 <li>Meaningful transparency produces an alpha-capable ACE format when
 the chosen output format supports alpha.</li>
+<li>Structured alpha output stores red, green, blue, a 1-bit mask and
+8-bit alpha, exactly like Kuju’s MakeACE. A mask pixel is solid when its
+alpha is above 32.</li>
 <li>If DXT3 or DXT5 is selected for an image with no alpha channel,
 PNG2ACE skips that file and prints/logs a message. No ACE file is
 written for that skipped image.</li>
@@ -484,10 +490,14 @@ because they are alpha-image formats.</p>
 <h2 id="troubleshooting">Troubleshooting</h2>
 <h3 id="the-output-ace-looks-striped-or-interlaced">The output ACE looks
 striped or interlaced</h3>
-<p>Use the current PNG2ACE build and try Structured or DXT1 output
-first. Some legacy ACE readers misread unnecessary alpha data. PNG2ACE
-avoids writing alpha planes for fully opaque alpha channels and tiny
-near-opaque alpha noise.</p>
+<p>Use PNG2ACE 0.2.0 or later. Earlier versions wrote the ACE row table
+and alpha channels in a slightly different layout from Kuju’s MakeACE,
+which some older ACE readers can show as stripes. 0.2.0 writes the same
+layout as MakeACE. PNG2ACE also avoids writing alpha planes for fully
+opaque alpha channels and tiny near-opaque alpha noise.</p>
+<p>If you still see stripes, reconvert the texture from the original
+PNG/TGA with the current build; ACE files made by older PNG2ACE versions
+are not fixed automatically.</p>
 <h3 id="dxt3-or-dxt5-says-the-image-was-skipped">DXT3 or DXT5 says the
 image was skipped</h3>
 <p>The input image does not contain an alpha channel. Use DXT1 or
@@ -575,5 +585,17 @@ Simulator and Open Rails. Structured output is the most conservative
 choice. DXT output is smaller and may be useful for distribution or
 large texture sets, but test important textures in your target simulator
 or viewer before replacing working originals.</p>
+<h3 id="compatibility-with-makeace">Compatibility with MakeACE</h3>
+<p>PNG2ACE 0.2.0 writes ACE files in the same layout as Kuju’s original
+MakeACE 1.04: the same header values, channel list, row table and
+full-size pixel data. The differences you can expect are:</p>
+<ul>
+<li>Mipmaps: MakeACE copies one pixel from each 2x2 block; PNG2ACE
+averages the block, so its distant mipmaps look smoother.</li>
+<li>Alpha detection: MakeACE treats any alpha below 255 as transparency;
+PNG2ACE ignores tiny near-opaque alpha noise.</li>
+<li>PNG2ACE does not write zlib-compressed (<code>SIMISA@F</code>) ACE
+files.</li>
+</ul>
 </body>
 </html>

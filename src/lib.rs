@@ -264,15 +264,163 @@ fn alpha_format_requires_source_alpha(format: AceFormat) -> bool {
     matches!(format, AceFormat::Dxt3 | AceFormat::Dxt5)
 }
 
-fn output_channel_count(output_format: OutputFormat, texture: &Texture) -> u32 {
-    match output_format {
-        OutputFormat::Dxt3 | OutputFormat::Dxt5 => 4,
-        OutputFormat::Structured | OutputFormat::Dxt1 => ace_channel_count(texture),
+/// One ACE colour plane. The numeric ids are the ACE channel type codes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Plane {
+    Mask,
+    Red,
+    Green,
+    Blue,
+    Alpha,
+}
+
+impl Plane {
+    fn type_id(self) -> u64 {
+        match self {
+            Plane::Mask => 2,
+            Plane::Red => 3,
+            Plane::Green => 4,
+            Plane::Blue => 5,
+            Plane::Alpha => 6,
+        }
+    }
+
+    fn bits(self) -> u64 {
+        if self == Plane::Mask { 1 } else { 8 }
+    }
+
+    /// Bytes this plane occupies in one uncompressed row of `width` pixels.
+    fn row_bytes(self, width: u32) -> usize {
+        if self == Plane::Mask {
+            width.div_ceil(8) as usize
+        } else {
+            width as usize
+        }
     }
 }
 
+const RGB_PLANES: &[Plane] = &[Plane::Red, Plane::Green, Plane::Blue];
+const RGB_MASK_PLANES: &[Plane] = &[Plane::Red, Plane::Green, Plane::Blue, Plane::Mask];
+const RGB_MASK_ALPHA_PLANES: &[Plane] = &[
+    Plane::Red,
+    Plane::Green,
+    Plane::Blue,
+    Plane::Mask,
+    Plane::Alpha,
+];
+const RGB_ALPHA_PLANES: &[Plane] = &[Plane::Red, Plane::Green, Plane::Blue, Plane::Alpha];
+
+/// Note: MakeACE stores row/level offsets relative to the end of the 16-byte
+/// `SIMISA@@@@@@@@@@` signature (the start of the ACE body), not as absolute file positions.
+/// ACE body header: six u32 fields, then 128 bytes of reserved/name/creator data.
+const BODY_HEADER_LEN: usize = 6 * 4 + 128;
+
+/// The 1-bit mask channel is set (opaque) when alpha is above this value, as in MakeACE.
+const MASK_ALPHA_THRESHOLD: u8 = 0x20;
+
+/// ACE header flag bits as written by MakeACE: 0x01 = mipmaps, 0x04 = set on every
+/// mipmapped texture by MakeACE (meaning undocumented), 0x10 = raw (DXT) surface data.
+const FLAG_MIPMAPS: u32 = 0x01;
+const FLAG_TEXTURE: u32 = 0x04;
+const FLAG_RAW_DATA: u32 = 0x10;
+
+/// Channel layout written for each output format, matching MakeACE:
+/// opaque = R,G,B; 8-bit alpha = R,G,B,Mask,Alpha; DXT1 with transparency = R,G,B,Mask.
+/// DXT3/DXT5 (not produced by MakeACE) declare R,G,B,Alpha.
+fn output_planes(output_format: OutputFormat, texture: &Texture) -> &'static [Plane] {
+    let alpha = uses_meaningful_alpha(texture);
+    match output_format {
+        OutputFormat::Structured if alpha => RGB_MASK_ALPHA_PLANES,
+        OutputFormat::Dxt1 if alpha => RGB_MASK_PLANES,
+        OutputFormat::Structured | OutputFormat::Dxt1 => RGB_PLANES,
+        OutputFormat::Dxt3 | OutputFormat::Dxt5 => RGB_ALPHA_PLANES,
+    }
+}
+
+fn output_channel_count(output_format: OutputFormat, texture: &Texture) -> u32 {
+    output_planes(output_format, texture).len() as u32
+}
+
+/// Number of ACE channels the default structured writer emits for this texture.
 pub fn ace_channel_count(texture: &Texture) -> u32 {
-    if uses_meaningful_alpha(texture) { 4 } else { 3 }
+    output_channel_count(OutputFormat::Structured, texture)
+}
+
+/// MakeACE surface format codes for structured data: 0x0E RGB565, 0x10 ARGB1555, 0x11 ARGB4444.
+fn structured_surface_format(planes: &[Plane]) -> u32 {
+    if planes.contains(&Plane::Alpha) {
+        0x11
+    } else if planes.contains(&Plane::Mask) {
+        0x10
+    } else {
+        0x0E
+    }
+}
+
+fn write_ace_header<W: Write>(
+    output: &mut W,
+    flags: u32,
+    texture: &Texture,
+    surface_format: u32,
+    planes: &[Plane],
+) -> Result<(), AceError> {
+    output.write_all(b"SIMISA@@@@@@@@@@")?;
+    output.write_all(&1u32.to_le_bytes())?;
+    output.write_all(&flags.to_le_bytes())?;
+    output.write_all(&texture.width.to_le_bytes())?;
+    output.write_all(&texture.height.to_le_bytes())?;
+    output.write_all(&surface_format.to_le_bytes())?;
+    output.write_all(&(planes.len() as u32).to_le_bytes())?;
+    // Reserved u32, 16-byte name and 64-byte creator text, then padding (128 bytes total).
+    let mut reserved = [0u8; 128];
+    reserved[4..11].copy_from_slice(b"Unknown");
+    let creator = b"ACE file created by PNG2ACE";
+    reserved[20..20 + creator.len()].copy_from_slice(creator);
+    output.write_all(&reserved)?;
+    for plane in planes {
+        output.write_all(&plane.bits().to_le_bytes())?;
+        output.write_all(&plane.type_id().to_le_bytes())?;
+    }
+    Ok(())
+}
+
+/// Offset of the first byte after the channel table, relative to the ACE body.
+fn body_table_start(planes: &[Plane]) -> usize {
+    BODY_HEADER_LEN + planes.len() * 16
+}
+
+fn uncompressed_row_bytes(planes: &[Plane], width: u32) -> usize {
+    planes.iter().map(|plane| plane.row_bytes(width)).sum()
+}
+
+/// Writes one planar ACE row: every plane in order (R bytes, G bytes, ..., mask bits MSB-first).
+fn write_planar_row<W: Write>(
+    output: &mut W,
+    row: &[[u8; 4]],
+    planes: &[Plane],
+) -> Result<(), AceError> {
+    let mut bytes = Vec::with_capacity(uncompressed_row_bytes(planes, row.len() as u32));
+    for plane in planes {
+        match plane {
+            Plane::Red => bytes.extend(row.iter().map(|pixel| pixel[0])),
+            Plane::Green => bytes.extend(row.iter().map(|pixel| pixel[1])),
+            Plane::Blue => bytes.extend(row.iter().map(|pixel| pixel[2])),
+            Plane::Alpha => bytes.extend(row.iter().map(|pixel| pixel[3])),
+            Plane::Mask => {
+                for chunk in row.chunks(8) {
+                    let mut byte = 0u8;
+                    for (bit, pixel) in chunk.iter().enumerate() {
+                        if pixel[3] > MASK_ALPHA_THRESHOLD {
+                            byte |= 0x80 >> bit;
+                        }
+                    }
+                    bytes.push(byte);
+                }
+            }
+        }
+    }
+    output.write_all(&bytes)?;
+    Ok(())
 }
 
 fn uses_meaningful_alpha(texture: &Texture) -> bool {
@@ -313,50 +461,36 @@ pub fn write_ace_with_options<W: Write>(
     } else {
         vec![texture.clone()]
     };
-    let channel_count = ace_channel_count(texture);
-
-    // Uncompressed ACE envelope followed by the structured texture header.
-    output.write_all(b"SIMISA@@@@@@@@@@")?;
-    output.write_all(&1u32.to_le_bytes())?;
-    output.write_all(&(u32::from(options.mipmaps)).to_le_bytes())?;
-    output.write_all(&texture.width.to_le_bytes())?;
-    output.write_all(&texture.height.to_le_bytes())?;
-    output.write_all(&0u32.to_le_bytes())?; // surface format is unused for structured data
-    output.write_all(&channel_count.to_le_bytes())?; // red, green, blue, optional alpha
-    output.write_all(&[0u8; 128])?;
-
-    let channel_types: &[u64] = if channel_count == 4 {
-        &[3, 4, 5, 6]
+    let planes = output_planes(output_format, texture);
+    let flags = if options.mipmaps {
+        FLAG_MIPMAPS | FLAG_TEXTURE
     } else {
-        &[3, 4, 5]
+        0
     };
-    for &channel_type in channel_types {
-        output.write_all(&8u64.to_le_bytes())?; // 8 bits per channel
-        output.write_all(&channel_type.to_le_bytes())?;
-    }
+    write_ace_header(
+        &mut output,
+        flags,
+        texture,
+        structured_surface_format(planes),
+        planes,
+    )?;
 
-    // Structured ACE stores one offset per scanline of every mipmap level.
-    // Offsets are absolute file positions to the beginning of each row.
-    let table_start = 16 + 4 + 5 * 4 + 128 + channel_count as usize * 16;
+    // Structured ACE stores one offset per scanline of every mipmap level, relative to the
+    // ACE body (file position minus the 16-byte signature), exactly as MakeACE writes them.
     let table_bytes: usize = levels.iter().map(|level| level.height as usize * 4).sum();
-    let data_start = table_start + table_bytes;
-    let mut next_offset = data_start;
+    let mut next_offset = body_table_start(planes) + table_bytes;
     for level in &levels {
-        let row_size = level.width as usize * channel_count as usize;
+        let row_size = uncompressed_row_bytes(planes, level.width);
         for _ in 0..level.height {
             output.write_all(&(next_offset as u32).to_le_bytes())?;
             next_offset += row_size;
         }
     }
 
-    // Structured ACE rows are planar: all red bytes, then green, blue, alpha.
+    // Structured ACE rows are planar: red bytes, green, blue, then mask bits and alpha bytes.
     for level in &levels {
         for row in level.pixels.chunks_exact(level.width as usize) {
-            for channel in 0..channel_count as usize {
-                for pixel in row {
-                    output.write_all(&[pixel[channel]])?;
-                }
-            }
+            write_planar_row(&mut output, row, planes)?;
         }
     }
 
@@ -375,41 +509,46 @@ fn write_raw_dxt_ace<W: Write>(
         vec![texture.clone()]
     };
     let meaningful_alpha = uses_meaningful_alpha(texture);
-    let compressed_levels: Vec<Vec<u8>> = levels
+    let planes = output_planes(output_format, texture);
+
+    // MakeACE (and the Open Rails reader) store DXT levels of 4x4 and larger as a u32 length
+    // followed by the compressed blocks; smaller levels are stored as uncompressed planar rows
+    // using the declared channels, with no length prefix.
+    let encoded_levels: Vec<Vec<u8>> = levels
         .iter()
-        .map(|level| compress_dxt_level(level, output_format, meaningful_alpha))
-        .collect();
+        .map(|level| {
+            if level.width >= 4 && level.height >= 4 {
+                let data = compress_dxt_level(level, output_format, meaningful_alpha);
+                let mut encoded = Vec::with_capacity(4 + data.len());
+                encoded.extend_from_slice(&(data.len() as u32).to_le_bytes());
+                encoded.extend_from_slice(&data);
+                Ok(encoded)
+            } else {
+                let mut encoded = Vec::new();
+                for row in level.pixels.chunks_exact(level.width as usize) {
+                    write_planar_row(&mut encoded, row, planes)?;
+                }
+                Ok(encoded)
+            }
+        })
+        .collect::<Result<_, AceError>>()?;
 
-    output.write_all(b"SIMISA@@@@@@@@@@")?;
-    output.write_all(&1u32.to_le_bytes())?;
-    output.write_all(&(0x14u32 | u32::from(options.mipmaps)).to_le_bytes())?;
-    output.write_all(&texture.width.to_le_bytes())?;
-    output.write_all(&texture.height.to_le_bytes())?;
-    output.write_all(&output_format.surface_format().to_le_bytes())?;
-    let channel_count = output_channel_count(output_format, texture);
-    output.write_all(&channel_count.to_le_bytes())?;
-    output.write_all(&[0u8; 128])?;
+    let flags = FLAG_RAW_DATA | FLAG_TEXTURE | if options.mipmaps { FLAG_MIPMAPS } else { 0 };
+    write_ace_header(
+        &mut output,
+        flags,
+        texture,
+        output_format.surface_format(),
+        planes,
+    )?;
 
-    let channel_types: &[u64] = if channel_count == 4 {
-        &[3, 4, 5, 6]
-    } else {
-        &[3, 4, 5]
-    };
-    for &channel_type in channel_types {
-        output.write_all(&8u64.to_le_bytes())?;
-        output.write_all(&channel_type.to_le_bytes())?;
-    }
-
-    let table_start = 16 + 4 + 5 * 4 + 128 + channel_count as usize * 16;
-    let table_bytes = compressed_levels.len() * 4;
-    let mut next_offset = table_start + table_bytes;
-    for data in &compressed_levels {
+    // One offset per level, relative to the ACE body like MakeACE.
+    let mut next_offset = body_table_start(planes) + encoded_levels.len() * 4;
+    for data in &encoded_levels {
         output.write_all(&(next_offset as u32).to_le_bytes())?;
-        next_offset += 4 + data.len();
+        next_offset += data.len();
     }
-
-    for data in compressed_levels {
-        output.write_all(&(data.len() as u32).to_le_bytes())?;
+    for data in encoded_levels {
         output.write_all(&data)?;
     }
 
@@ -521,9 +660,15 @@ mod tests {
         assert_eq!(u32::from_le_bytes(bytes[20..24].try_into().unwrap()), 0);
         assert_eq!(u32::from_le_bytes(bytes[24..28].try_into().unwrap()), 2);
         assert_eq!(u32::from_le_bytes(bytes[28..32].try_into().unwrap()), 1);
-        assert_eq!(u32::from_le_bytes(bytes[32..36].try_into().unwrap()), 0);
+        assert_eq!(u32::from_le_bytes(bytes[32..36].try_into().unwrap()), 0x0E);
         assert_eq!(u32::from_le_bytes(bytes[36..40].try_into().unwrap()), 3);
         assert_eq!(bytes.len(), 16 + 4 + 5 * 4 + 128 + 3 * 16 + 4 + 6);
+        // Row offsets are relative to the ACE body (file position - 16), like MakeACE.
+        let table_start = 16 + 4 + 5 * 4 + 128 + 3 * 16;
+        assert_eq!(
+            u32::from_le_bytes(bytes[table_start..table_start + 4].try_into().unwrap()) as usize,
+            table_start + 4 - 16
+        );
         assert!(bytes.ends_with(&[0x11, 0xaa, 0x22, 0xbb, 0x33, 0xcc]));
     }
 
@@ -573,9 +718,18 @@ mod tests {
 
         write_ace(&texture, &mut bytes).unwrap();
 
-        assert_eq!(u32::from_le_bytes(bytes[36..40].try_into().unwrap()), 4);
-        assert_eq!(bytes.len(), 16 + 4 + 5 * 4 + 128 + 4 * 16 + 4 + 8);
-        assert!(bytes.ends_with(&[0x11, 0xaa, 0x22, 0xbb, 0x33, 0xcc, 0xff, 0x80]));
+        // MakeACE alpha layout: R, G, B, 1-bit mask, 8-bit alpha; surface format 0x11.
+        assert_eq!(u32::from_le_bytes(bytes[32..36].try_into().unwrap()), 0x11);
+        assert_eq!(u32::from_le_bytes(bytes[36..40].try_into().unwrap()), 5);
+        let channels: Vec<u64> = (0..5)
+            .map(|i| {
+                let at = 16 + 4 + 5 * 4 + 128 + i * 16 + 8;
+                u64::from_le_bytes(bytes[at..at + 8].try_into().unwrap())
+            })
+            .collect();
+        assert_eq!(channels, vec![3, 4, 5, 2, 6]);
+        assert_eq!(bytes.len(), 16 + 4 + 5 * 4 + 128 + 5 * 16 + 4 + 9);
+        assert!(bytes.ends_with(&[0x11, 0xaa, 0x22, 0xbb, 0x33, 0xcc, 0xc0, 0xff, 0x80]));
     }
 
     #[test]
@@ -605,7 +759,7 @@ mod tests {
         let table_start = 16 + 4 + 5 * 4 + 128 + 3 * 16;
         assert_eq!(
             u32::from_le_bytes(bytes[table_start..table_start + 4].try_into().unwrap()),
-            220
+            220 - 16
         );
         assert_eq!(
             u32::from_le_bytes(bytes[table_start + 4..table_start + 8].try_into().unwrap()),
@@ -664,7 +818,7 @@ mod tests {
         let table_start = 16 + 4 + 5 * 4 + 128 + 4 * 16;
         assert_eq!(
             u32::from_le_bytes(bytes[table_start..table_start + 4].try_into().unwrap()),
-            236
+            236 - 16
         );
         assert_eq!(
             u32::from_le_bytes(bytes[table_start + 4..table_start + 8].try_into().unwrap()),
@@ -760,10 +914,101 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(u32::from_le_bytes(bytes[20..24].try_into().unwrap()), 1);
+        assert_eq!(u32::from_le_bytes(bytes[20..24].try_into().unwrap()), 0x05);
         let table_start = 16 + 4 + 5 * 4 + 128 + 3 * 16;
         assert_eq!(bytes.len(), table_start + (2 + 1) * 4 + (2 * 2 * 3) + 3);
         assert!(bytes.ends_with(&[25, 35, 45]));
+    }
+
+    #[test]
+    fn mask_bit_is_set_only_when_alpha_is_above_32() {
+        // 10 pixels so the mask spans two bytes (MSB first); alphas straddle the threshold.
+        let alphas = [0u8, 32, 33, 255, 0x80, 0, 32, 33, 33, 0];
+        let texture = Texture {
+            width: 10,
+            height: 1,
+            pixels: alphas.iter().map(|&a| [1, 2, 3, a]).collect(),
+            source_has_alpha: true,
+        };
+        let mut bytes = Vec::new();
+
+        write_ace(&texture, &mut bytes).unwrap();
+
+        let row = &bytes[bytes.len() - (10 * 3 + 2 + 10)..];
+        assert_eq!(&row[30..32], &[0b0011_1001, 0b1000_0000]);
+        assert_eq!(&row[32..], &alphas);
+    }
+
+    #[test]
+    fn dxt_levels_smaller_than_4x4_are_stored_as_uncompressed_rows() {
+        let texture = Texture {
+            width: 4,
+            height: 4,
+            pixels: vec![[0x40, 0x80, 0xc0, 0xff]; 16],
+            source_has_alpha: false,
+        };
+        let mut bytes = Vec::new();
+
+        write_ace_with_options(
+            &texture,
+            &mut bytes,
+            AceOptions {
+                mipmaps: true,
+                format: AceFormat::Dxt1,
+            },
+        )
+        .unwrap();
+
+        assert_eq!(u32::from_le_bytes(bytes[20..24].try_into().unwrap()), 0x15);
+        let table_start = 16 + 4 + 5 * 4 + 128 + 3 * 16;
+        let offsets: Vec<usize> = (0..3)
+            .map(|i| {
+                let at = table_start + i * 4;
+                u32::from_le_bytes(bytes[at..at + 4].try_into().unwrap()) as usize + 16
+            })
+            .collect();
+        // 4x4: u32 length + one 8-byte DXT1 block; 2x2: two planar RGB rows; 1x1: one row.
+        assert_eq!(offsets[0], table_start + 12);
+        assert_eq!(
+            u32::from_le_bytes(bytes[offsets[0]..offsets[0] + 4].try_into().unwrap()),
+            8
+        );
+        assert_eq!(offsets[1], offsets[0] + 12);
+        assert_eq!(
+            &bytes[offsets[1]..offsets[2]],
+            &[
+                0x40, 0x40, 0x80, 0x80, 0xc0, 0xc0, 0x40, 0x40, 0x80, 0x80, 0xc0, 0xc0
+            ]
+        );
+        assert_eq!(&bytes[offsets[2]..], &[0x40, 0x80, 0xc0]);
+    }
+
+    #[test]
+    fn transparent_dxt1_declares_a_mask_channel() {
+        let texture = Texture {
+            width: 4,
+            height: 4,
+            pixels: vec![[0x11, 0x22, 0x33, 0x00]; 16],
+            source_has_alpha: true,
+        };
+        let mut bytes = Vec::new();
+
+        write_ace_with_options(
+            &texture,
+            &mut bytes,
+            AceOptions {
+                format: AceFormat::Dxt1,
+                ..AceOptions::default()
+            },
+        )
+        .unwrap();
+
+        assert_eq!(u32::from_le_bytes(bytes[36..40].try_into().unwrap()), 4);
+        let mask_type_at = 16 + 4 + 5 * 4 + 128 + 3 * 16;
+        assert_eq!(
+            &bytes[mask_type_at..mask_type_at + 16],
+            &[1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0]
+        );
     }
 
     #[test]

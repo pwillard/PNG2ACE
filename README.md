@@ -63,6 +63,19 @@ The default output is uncompressed structured ACE data. DXT/raw ACE output is al
 
 ## Format implementation
 
-The encoder writes the uncompressed `SIMISA@@@@@@@@@@` envelope and the structured channel layout used by the Open Rails ACE reader. Structured rows are written as planar channel data: red row bytes, green row bytes, blue row bytes, then alpha row bytes when the source image has meaningful transparency.
+The encoder writes the uncompressed `SIMISA@@@@@@@@@@` envelope and the structured channel layout used by the Open Rails ACE reader. Structured rows are written as planar channel data: red row bytes, green row bytes, blue row bytes, then, for images with meaningful transparency, a 1-bit mask (MSB first, set when alpha > 32) and the alpha row bytes.
 
-The format reference used during development is Open Rails' `AceFile.cs`. This project does not copy that source file.
+### MakeACE compatibility
+
+The layout matches Kuju MakeACE 1.04 byte for byte for the header, channel table, offset table and level-0 pixels (`tests/makeace_parity.rs` checks this against real MakeACE output in `tests/fixtures`):
+
+- Row/level offsets are relative to the ACE body, i.e. file position minus the 16-byte `SIMISA@@@@@@@@@@` signature.
+- Flags: `0x05` for mipmapped structured textures, `0x00` without mipmaps, `0x10 | 0x04 | mipmaps` for DXT.
+- Surface format: `0x0E` RGB, `0x11` RGB+mask+alpha, `0x12`/`0x14`/`0x16` DXT1/3/5.
+- Channels: RGB = 3, alpha = R,G,B,Mask,Alpha (5), transparent DXT1 = R,G,B,Mask (4). DXT3/DXT5 declare R,G,B,Alpha.
+- DXT mip levels smaller than 4x4 are stored as uncompressed planar rows without a length prefix.
+- Header name/creator text: `Unknown` / `ACE file created by PNG2ACE`.
+
+Intentional differences: mipmaps are box-filtered (MakeACE point-samples), and near-opaque alpha noise is ignored.
+
+The format references used during development are Open Rails' `AceFile.cs` and a reverse-engineering/differential test of Kuju MakeACE 1.04. This project does not copy that source file.
